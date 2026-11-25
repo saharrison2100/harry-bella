@@ -115,18 +115,24 @@ nav button.on svg{stroke:var(--goldd)}
 .cl li{margin-bottom:5px}
 
 
-.lock{position:fixed;inset:0;background:linear-gradient(165deg,#122A48,#0B1A2E 60%,#122A48);display:none;place-items:center;z-index:200;padding:26px;text-align:center}
-.lock.on{display:grid}
-.lock .lw{width:100%;max-width:330px;color:#fff}
-.lock img{width:74px;height:auto;margin-bottom:14px}
-.lock h2{font-family:Georgia,serif;font-size:20px;letter-spacing:.06em;margin:0 0 4px;font-weight:600}
-.lock p{color:#B9C4D4;font-size:12.5px;margin:0 0 20px;line-height:1.5}
-.lock input{width:100%;padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.07);color:#fff;font-size:19px;text-align:center;letter-spacing:.35em;margin-bottom:10px}
-.lock input::placeholder{letter-spacing:normal;font-size:13px;color:#7C8AA0}
-.lock button{width:100%;padding:14px;border-radius:12px;border:0;background:var(--gold);color:#1A1408;font-size:14.5px;font-weight:700;letter-spacing:.02em;cursor:pointer}
-.lock .ghost{background:transparent;color:#C9D3E0;border:1px solid rgba(255,255,255,.2);margin-top:9px;font-weight:600}
-.lock .err{color:#FF9B8F;font-size:12.5px;min-height:17px;margin:2px 0 10px}
-.lock .small{font-size:11px;color:#7C8AA0;margin-top:16px;line-height:1.5}
+.lock{position:fixed;inset:0;display:none;z-index:200;background:#0A1420 url('splash.jpg') center center/cover no-repeat}
+.lock.on{display:block}
+.lock::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,14,26,.30) 0%,rgba(7,14,26,.10) 28%,rgba(7,14,26,.72) 56%,rgba(7,14,26,.95) 78%,rgba(7,14,26,.97) 100%)}
+.lock .lw{position:absolute;left:0;right:0;bottom:0;padding:0 20px calc(18px + env(safe-area-inset-bottom));color:#fff;text-align:center;animation:lockIn .5s ease both}
+@keyframes lockIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.lock .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:#D8B77A;margin-bottom:6px}
+.lock .sub{color:#C3CEDD;font-size:12.5px;margin:0 0 13px;line-height:1.45}
+.lock input{width:100%;padding:15px;border-radius:14px;border:1px solid rgba(216,183,122,.5);background:rgba(10,20,34,.68);color:#fff;font-size:20px;text-align:center;letter-spacing:.42em;margin-bottom:9px;box-sizing:border-box}
+.lock input::placeholder{letter-spacing:normal;font-size:12.5px;color:#8E9BAE}
+.lock input:focus{outline:none;border-color:#D8B77A;background:rgba(10,20,34,.82)}
+#lockGo{width:100%;padding:15px;border-radius:14px;border:0;background:linear-gradient(180deg,#DDBE84,#B99A5C);color:#1A1408;font-size:14.5px;font-weight:700;letter-spacing:.03em}
+.lock .jump{display:flex;align-items:center;gap:10px;margin:15px 0 9px;color:#94A2B5;font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.lock .jump::before,.lock .jump::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.16)}
+.lock .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.lock .chip{padding:11px 3px;border-radius:12px;border:1px solid rgba(216,183,122,.42);background:rgba(12,22,36,.66);color:#EADFC8;font-size:10.5px;font-weight:600;letter-spacing:.01em}
+.lock .chip:active{background:rgba(216,183,122,.22)}
+.lock .small{font-size:10.5px;color:#8E9BAE;margin-top:11px;line-height:1.45}
+.lock .err{color:#FF9B8F;font-size:12px;min-height:16px;margin:0 0 7px}
 .lockbtn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#E8EEF7;width:34px;height:34px;border-radius:10px;font-size:14px;cursor:pointer;margin-left:auto;flex:0 0 auto}
 </style>
 </head>
@@ -143,6 +149,28 @@ nav button.on svg{stroke:var(--goldd)}
 </header>
 <main id="app"></main>
 <nav id="nav"></nav>
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet"><div class="sheet-h"><h3 id="sheetTitle"></h3><button class="x" id="sheetX">&times;</button></div><div class="sheet-b" id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+
+
+<div id="lock" class="lock">
+  <div class="lw">
+    <div class="eyebrow" id="lockTitle">Owner access</div>
+    <p class="sub" id="lockSub">Enter your PIN to open the studio</p>
+    <div id="lockFields"></div>
+    <div class="err" id="lockErr"></div>
+    <button id="lockGo" type="button">Unlock</button>
+    <div class="jump"><span>or go straight to</span></div>
+    <div class="chips">
+      <button type="button" class="chip" data-dest="designs">Gallery</button>
+      <button type="button" class="chip" data-dest="clients">Clients</button>
+      <button type="button" class="chip" data-dest="jobs">Jobs</button>
+      <button type="button" class="chip" data-dest="money">Money</button>
+    </div>
+    <div class="small" id="lockFoot">PIN required. A staff PIN opens jobs, clients, designs and deliveries only.</div>
+  </div>
+</div>
 <div class="sheet-bg" id="sheetBg"></div>
 <div class="sheet" id="sheet"><div class="sheet-h"><h3 id="sheetTitle"></h3><button class="x" id="sheetX">&times;</button></div><div class="sheet-b" id="sheetBody"></div></div>
 <div class="toast" id="toast"></div>

@@ -967,6 +967,7 @@
   /* ---------------- owner login ---------------- */
   let role = null;              // null = locked, 'owner' | 'staff'
   let lastActive = Date.now();
+  let pendingDest = null;       // section the user tapped on the cover before unlocking
 
   function b64(buf) { let s = ''; const b = new Uint8Array(buf); for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s); }
 
@@ -1023,21 +1024,32 @@
       if (p1 !== p2) return lockErr('The two PINs do not match.');
       sc.salt = newSalt();
       sc.pinHash = await hashPin(p1, sc.salt);
-      save(); role = 'owner'; hideLock(); render(); toast('PIN set. You are signed in as owner.');
+      save(); role = 'owner'; enter(pendingDest); toast('PIN set. You are signed in as owner.');
       return;
     }
     if (!/^\d{4,6}$/.test(p1)) return lockErr('Enter your PIN.');
     const h = await hashPin(p1, sc.salt);
-    if (h === sc.pinHash) { role = 'owner'; hideLock(); render(); return; }
+    if (h === sc.pinHash) { role = 'owner'; enter(pendingDest); return; }
     if (sc.staffHash && sc.staffSalt) {
       const hs = await hashPin(p1, sc.staffSalt);
-      if (hs === sc.staffHash) { role = 'staff'; hideLock(); route = 'home'; render(); return; }
+      if (hs === sc.staffHash) { role = 'staff'; enter(pendingDest || 'home'); return; }
     }
     lockErr('Wrong PIN. Try again.');
     const f = $('#pin1'); if (f) { f.value = ''; f.focus(); }
   }
 
-  function lockNow() { role = null; showLock(); }
+  function enter(dest) {
+    hideLock();
+    if (dest) {
+      if (role === 'staff' && (dest === 'money' || dest === 'settings')) {
+        route = 'home'; toast('That section is owner only');
+      } else { route = dest; }
+    }
+    pendingDest = null;
+    render();
+  }
+
+  function lockNow() { role = null; pendingDest = null; showLock(); }
   function isStaff() { return role === 'staff'; }
 
   async function setStaffPin(pin) {
@@ -1091,6 +1103,19 @@
   }
 
   A['lock-now'] = () => { lockNow(); };
+
+  document.addEventListener('click', (e) => {
+    const chip = e.target.closest && e.target.closest('#lock .chip');
+    if (!chip) return;
+    const dest = chip.dataset.dest;
+    const label = chip.textContent.trim();
+    pendingDest = dest;
+    const pin = (($('#pin1') || {}).value || '').trim();
+    if (/^\d{4,6}$/.test(pin)) { submitLock(); return; }
+    const setup = !(ensureSec().pinHash);
+    lockErr(setup ? 'Create your PIN to open ' + label : 'Enter your PIN to open ' + label);
+    const f = $('#pin1'); if (f) f.focus();
+  });
   A['save-pins'] = async () => {
     const np = ($('#sec-new') || {}).value || '';
     const sp = ($('#sec-staff') || {}).value || '';

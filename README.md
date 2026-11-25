@@ -14,6 +14,7 @@ Android app (Capacitor + vanilla JS), built for Android 15, runs on Android 5.1 
 - **Deliveries** - pickups and drops, with rider notes.
 - **Training** - NTSC camp batches, trainee fees and payments.
 - **Payments** - bank transfer details print on receipts and WhatsApp payment messages.
+- **Welcome cover** - a branded splash cover on launch with the PIN login and shortcut buttons for Gallery, Clients, Jobs and Money. Every shortcut still requires the PIN.
 - **Owner login** - a PIN gate. The owner PIN opens everything; a staff PIN opens jobs, clients, designs and deliveries only, with no money screens and no settings.
 
 ## Privacy
@@ -52,4 +53,4 @@ keytool -genkey -v -keystore harrybella.jks -keyalg RSA -keysize 2048 -validity 
 
 ## Version
 
-1.3.0 - owner PIN login and staff role.
+1.4.0 - branded welcome cover with PIN login and shortcut buttons.
