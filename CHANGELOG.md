@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.0
+- Six design categories: African attire, office and corporate, bridal and occasion, casual and everyday, men's wear, kids and family.
+- Category filters sit alongside the existing Studio, Client refs and AI drafts filters, and the two combine.
+- A 29-style starter library covering Bubu, Ankara two-pieces, kaftan, agbada, senator, sheath dresses, corset and mermaid, jumpsuits, men's kaftan and safari, and kids' sets.
+- Any design can be moved to another category from its detail sheet.
+- Fixed: saving a design failed when no AI key was configured, because the form read a field that only exists with a key.
+- Fixed: toasts no longer block taps on the button underneath.
+
 ## 1.4.0
 - Branded welcome cover on launch, using the studio splash artwork.
 - PIN login sits on the cover, with shortcut buttons for Gallery, Clients, Jobs and Money. Each shortcut still requires the PIN, and a staff PIN cannot open Money.

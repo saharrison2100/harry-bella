@@ -5,6 +5,7 @@ Android app (Capacitor + vanilla JS), built for Android 15, runs on Android 5.1 
 
 ## What it does
 
+- **Design categories** - six categories cover African attire, office and corporate wear, bridal and occasion, casual and everyday, men's wear, and kids and family. A starter library of 29 named styles ships with the app.
 - **Gallery** - finished looks, client references and AI drafts, with photo upload from camera or album and filters by source.
 - **Client design library** - every look can be assigned to a client, and her card shows her own design board.
 - **Tailoring guide** - fabric yardage, a piece-by-piece cut list and numbered construction steps, adjusted by the client's measurements.
@@ -53,4 +54,4 @@ keytool -genkey -v -keystore harrybella.jks -keyalg RSA -keysize 2048 -validity 
 
 ## Version
 
-1.4.0 - branded welcome cover with PIN login and shortcut buttons.
+1.5.0 - design categories for African attire, office wear, occasion, casual, men's and kids, plus a 29-style starter library.

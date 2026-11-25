@@ -238,23 +238,87 @@
 
   function emptyBox(t, s) { return '<div class="empty"><div class="big">' + t + '</div>' + s + '</div>'; }
 
+  /* ---------- design categories ---------- */
+  const CATS = [
+    { k: 'african', l: 'African attire' },
+    { k: 'office', l: 'Office & corporate' },
+    { k: 'occasion', l: 'Bridal & occasion' },
+    { k: 'casual', l: 'Casual & everyday' },
+    { k: 'men', l: "Men's wear" },
+    { k: 'kids', l: 'Kids & family' }
+  ];
+  function catLabel(k) { const c = CATS.find((x) => x.k === k); return c ? c.l : 'Uncategorised'; }
+
+  // starter library: named styles across the categories, no photos attached
+  const STYLE_LIBRARY = [
+    ['african', 'Ankara Bubu, dramatic sleeves', 'Long flowing Bubu in bold Ankara, butterfly or bell sleeves, relaxed body', 'bubu, ankara, sleeves'],
+    ['african', 'Ankara two-piece, peplum + pencil', 'Fitted peplum top with a high pencil skirt, same print', 'ankara, peplum, two-piece'],
+    ['african', 'Bubu with lace trim', 'Loose Bubu with lace or organza at the neckline and hem', 'bubu, lace, organza'],
+    ['african', 'Kaftan with cutwork', 'Flowing kaftan, cutwork neckline, side slits, chiffon', 'kaftan, cutwork, chiffon'],
+    ['african', 'Aso-ebi set', 'Matching group outfit, iro and buba or gown, one fabric for the party', 'aso-ebi, group'],
+    ['african', 'Agbada set', 'Three-piece agbada, wide sleeves, heavy embroidery at the chest', 'agbada, embroidery'],
+    ['african', 'Ankara wrap dress, side slit', 'Wrap dress with a thigh slit and a tie waist', 'ankara, wrap, slit'],
+    ['office', 'Structured blazer + pencil skirt', 'Nipped-waist blazer with gold buttons, matching pencil skirt', 'office, blazer, suit'],
+    ['office', 'Sheath dress', 'Knee-length sheath, darted waist, invisible back zip', 'office, sheath'],
+    ['office', 'Wide-leg trousers + shirt', 'High-waist wide-leg trousers with a soft collared shirt', 'office, trousers'],
+    ['office', 'Shirt dress', 'Belted shirt dress with a pointed collar, midi length', 'office, shirt dress'],
+    ['office', 'Peplum top + tapered trousers', 'Peplum blouse with tapered ankle trousers', 'office, peplum'],
+    ['occasion', 'Gold lace bridal, A-line', 'Bridal gown, gold lace over champagne satin, sweetheart neckline, chapel train', 'bridal, lace'],
+    ['occasion', 'Owambe gown, organza', 'Fitted bodice with a full organza skirt, dramatic back', 'owambe, organza'],
+    ['occasion', 'Corset + mermaid skirt', 'Boned corset top with a mermaid skirt and sweep train', 'corset, mermaid'],
+    ['occasion', 'Aso-oke iro and buba', 'Handwoven aso-oke, iro wrapper with a buba blouse and gele', 'aso-oke, gele'],
+    ['occasion', 'Evening gown with cape', 'Column gown with a detachable cape sleeve', 'evening, cape'],
+    ['casual', 'Ankara jumpsuit', 'Wide-leg jumpsuit with a tie waist and pockets', 'casual, jumpsuit'],
+    ['casual', 'Short Bubu', 'Above-knee Bubu for relaxed days, simple sleeves', 'casual, bubu, short'],
+    ['casual', 'Co-ord two-piece', 'Camp shirt and shorts or trousers in the same fabric', 'casual, co-ord'],
+    ['casual', 'Tunic + palazzo', 'Long tunic over wide palazzo trousers', 'casual, palazzo'],
+    ['men', 'Senator suit', 'Two-piece senator, mandarin collar, clean lines', 'men, senator'],
+    ['men', 'Kaftan, men', 'Straight-cut kaftan with chest embroidery and side slits', 'men, kaftan'],
+    ['men', 'Agbada, men', 'Full agbada with matching top and trouser, heavy embroidery', 'men, agbada'],
+    ['men', 'Safari suit', 'Belted safari jacket with patch pockets, matching trousers', 'men, safari'],
+    ['men', 'Shirt + trouser set', 'Well-cut shirt with a straight trouser, casual or office', 'men, shirt'],
+    ['kids', 'Ankara kids dress', 'Simple puff-sleeve dress in Ankara, age-appropriate length', 'kids, ankara'],
+    ['kids', 'Boys kaftan', 'Small kaftan with a mandarin collar and short slits', 'kids, kaftan'],
+    ['kids', 'Family matching set', 'Parent and child set cut from the same fabric', 'kids, family']
+  ];
+  function loadStyleLibrary() {
+    const have = new Set(db.designs.map((d) => (d.title || '').toLowerCase()));
+    let added = 0;
+    STYLE_LIBRARY.forEach(([cat, title, note, tags]) => {
+      if (have.has(title.toLowerCase())) return;
+      db.designs.push({ id: uid('dz'), title, cat, prompt: note, tags, source: 'studio', clientId: '', imageUrl: '', created: today(), library: true });
+      added += 1;
+    });
+    if (added) { save(); }
+    return added;
+  }
+
   /* ---------- sub views ---------- */
   let galFilter = 'all';
+  let galCat = 'all';
 
   function viewDesigns() {
     const all = db.designs;
     const counts = { all: all.length, studio: 0, client: 0, ai: 0 };
     all.forEach((d) => { const k = d.source || 'studio'; if (counts[k] !== undefined) counts[k] += 1; });
-    const list = galFilter === 'all' ? all : all.filter((d) => (d.source || 'studio') === galFilter);
+    let list = galFilter === 'all' ? all : all.filter((d) => (d.source || 'studio') === galFilter);
+    if (galCat !== 'all') list = list.filter((d) => (d.cat || '') === galCat);
     const chips = [['all', 'All'], ['studio', 'Studio'], ['client', 'Client refs'], ['ai', 'AI drafts']]
       .map(([k, l]) => '<button class="chip ' + (galFilter === k ? 'on' : '') + '" data-galf="' + k + '">' + l + ' ' + counts[k] + '</button>').join('');
+    const catChips = [['all', 'All categories']].concat(CATS.map((c) => [c.k, c.l]))
+      .map(([k, l]) => {
+        const n = k === 'all' ? all.length : all.filter((d) => (d.cat || '') === k).length;
+        return '<button class="chip ' + (galCat === k ? 'on' : '') + '" data-galcat="' + k + '">' + esc(l) + ' ' + n + '</button>';
+      }).join('');
 
-    return '<div class="wrap"><div class="between"><div><h2>Gallery</h2><p class="sub">' + all.length + ' looks, references and AI drafts</p></div>' +
+    return '<div class="wrap"><div class="between"><div><h2>Gallery</h2><p class="sub">' + list.length + ' of ' + all.length + ' looks, references and AI drafts</p></div>' +
       '<button class="btn sm gold" data-act="new-design">+ Add</button></div>' +
       '<div class="chips">' + chips + '</div>' +
+      '<div class="chips">' + catChips + '</div>' +
       '<div class="row" style="margin-bottom:12px">' +
         '<button class="btn sm ghost" data-act="upload-design">Upload photo</button>' +
         '<button class="btn sm ghost" data-act="ai-design">AI design</button>' +
+        '<button class="btn sm ghost" data-act="load-library">Starter styles</button>' +
       '</div>' +
       (list.length ? '<div class="gal">' + list.map((d) => {
         const c = d.clientId ? clientById(d.clientId) : null;
@@ -262,9 +326,9 @@
           (d.imageUrl ? '<img src="' + esc(d.imageUrl) + '" alt="' + esc(d.title) + '">'
             : '<div class="gph"><span>' + esc((d.title || 'Look').slice(0, 14)) + '</span></div>') +
           '<div class="gmeta"><div class="gt">' + esc(d.title || 'Untitled') + '</div>' +
-          '<div class="gs">' + (c ? esc(c.name.split(' ')[0]) : esc(d.source === 'ai' ? 'AI draft' : 'Studio')) + '</div></div></div>';
+          '<div class="gs">' + (d.cat ? esc(catLabel(d.cat)) : (c ? esc(c.name.split(' ')[0]) : esc(d.source === 'ai' ? 'AI draft' : 'Studio'))) + '</div></div></div>';
       }).join('') + '</div>'
-        : '<div class="card">' + emptyBox('Nothing here yet', 'Upload a photo of a finished outfit, save a client reference, or generate an AI draft.') + '</div>') +
+        : '<div class="card">' + emptyBox('Nothing here yet', 'Upload a photo of a finished outfit, save a client reference, or load the starter style library.') + '</div>') +
       '</div>';
   }
 
@@ -355,9 +419,11 @@
     const c = d.clientId ? clientById(d.clientId) : null;
     openSheet(d.title || 'Design',
       (d.imageUrl ? '<img src="' + esc(d.imageUrl) + '" alt="" style="width:100%;border-radius:12px;margin-bottom:10px">' : '') +
-      '<div class="row" style="margin-bottom:10px"><span class="pill p-new">' + esc(d.source || 'studio') + '</span>' +
+      '<div class="row" style="margin-bottom:10px"><span class="pill p-new">' + esc(catLabel(d.cat)) + '</span>' +
+      '<span class="pill p-active">' + esc(d.source || 'studio') + '</span>' +
       (c ? '<span class="pill p-active">' + esc(c.name) + '</span>' : '<span class="pill p-due">No client</span>') + '</div>' +
       (d.prompt ? '<p class="sub" style="margin:0 0 12px">' + esc(d.prompt) + '</p>' : '') +
+      '<label>Category</label><select id="d-cat-edit">' + CATS.map((c) => '<option value="' + c.k + '"' + ((d.cat || '') === c.k ? ' selected' : '') + '>' + esc(c.l) + '</option>').join('') + '</select>' +
       '<div class="row" style="margin-bottom:12px"><button class="btn sm gold" data-guide="' + d.id + '">How to make it</button>' +
       '<button class="btn sm ghost" data-assign="' + d.id + '">Assign to client</button>' +
       '<button class="btn sm ghost" data-share-d="' + d.id + '">Share</button></div>' +
@@ -365,6 +431,12 @@
       '<div class="card" style="margin-top:12px"><button class="btn sm danger" data-del-d="' + d.id + '">Delete design</button></div>',
       () => {
         const box = $('#guideBox');
+        const catSel = $('#d-cat-edit');
+        if (catSel) catSel.onchange = () => {
+          d.cat = catSel.value; save();
+          const pill = $('#sheetBody .pill'); if (pill) pill.textContent = catLabel(d.cat);
+          toast('Moved to ' + catLabel(d.cat));
+        };
         $('#sheetBody').querySelector('[data-guide]').onclick = () => { box.innerHTML = guideHTML(d, c); };
         $('#sheetBody').querySelector('[data-assign]').onclick = () => assignDesignSheet(d.id);
         $('#sheetBody').querySelector('[data-share-d]').onclick = () => {
@@ -648,6 +720,7 @@
     const copts = '<option value="">No client yet</option>' + db.clients.map((c) => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('');
     openSheet('Add to gallery',
       '<label>Title</label><input id="d-title" placeholder="e.g. Gold lace bridal, A-line">' +
+      '<label>Category</label><select id="d-cat">' + CATS.map((c) => '<option value="' + c.k + '"' + (galCat === c.k ? ' selected' : '') + '>' + esc(c.l) + '</option>').join('') + '</select>' +
       '<label>Client (optional)</label><select id="d-client">' + copts + '</select>' +
       '<label>Where did it come from</label><select id="d-source">' +
         '<option value="studio">Studio - we made it</option>' +
@@ -781,6 +854,11 @@
       save(); go('designs'); toast('Photo added to gallery');
     },
     'ai-design': () => newDesignSheet(),
+    'load-library': () => {
+      const n = loadStyleLibrary();
+      render();
+      toast(n ? n + ' styles added to the library' : 'Starter styles are already loaded');
+    },
     'do-assign': (b) => {
       const d = db.designs.find((x) => x.id === b.dataset.id); if (!d) return;
       d.clientId = $('#a-client').value; save(); closeSheet(); render(); toast('Assigned');
@@ -788,9 +866,10 @@
     'save-design': () => {
       const title = $('#d-title').value.trim();
       if (!title) { toast('Give the design a title'); return; }
-      var img=$('#d-img').value.trim()||(window.__lastAI&&window.__lastAI.length<900000?window.__lastAI:''); window.__lastAI=null;
-      const cl = $('#d-client'); const sc = $('#d-source');
-      db.designs.unshift({ id: uid('dz'), title, prompt: $('#d-prompt').value.trim(), tags: $('#d-tags').value.trim(), imageUrl: img || pendingDesignImg || '', clientId: cl ? cl.value : '', source: sc ? sc.value : 'studio', created: today() });
+      const imgEl = $('#d-img');
+      var img = (imgEl ? imgEl.value.trim() : '') || (window.__lastAI && window.__lastAI.length < 900000 ? window.__lastAI : ''); window.__lastAI = null;
+      const cl = $('#d-client'); const sc = $('#d-source'); const ct = $('#d-cat');
+      db.designs.unshift({ id: uid('dz'), title, cat: ct ? ct.value : '', prompt: $('#d-prompt').value.trim(), tags: $('#d-tags').value.trim(), imageUrl: img || pendingDesignImg || '', clientId: cl ? cl.value : '', source: sc ? sc.value : 'studio', created: today() });
       pendingDesignImg = '';
       save(); closeSheet(); go('designs'); toast('Design saved');
     },
@@ -861,6 +940,7 @@
         { id: uid('dz'), title: 'Kaftan with cutwork', prompt: 'Flowing kaftan, cutwork neckline, side slits, chiffon', tags: 'kaftan', source: 'studio', clientId: '', imageUrl: '', created: today() },
         { id: uid('dz'), title: 'AI draft: structured blazer', prompt: 'Structured navy blazer, gold buttons, nipped waist', tags: 'ai, blazer', source: 'ai', clientId: '', imageUrl: '', created: today() }
       ]);
+      loadStyleLibrary();
       save(); toast('Demo data loaded'); render();
     },
     'wipe': () => {
@@ -948,6 +1028,7 @@
     document.querySelectorAll('[data-go]').forEach((b) => { b.onclick = () => go(b.dataset.go); });
     document.querySelectorAll('[data-design]').forEach((b) => { b.onclick = () => designSheet(b.dataset.design); });
     document.querySelectorAll('[data-galf]').forEach((b) => { b.onclick = () => { galFilter = b.dataset.galf; render(); }; });
+    document.querySelectorAll('[data-galcat]').forEach((b) => { b.onclick = () => { galCat = b.dataset.galcat; render(); }; });
     document.querySelectorAll('[data-filter]').forEach((b) => { b.onclick = () => { jobFilter = b.dataset.filter; render(); }; });
     document.querySelectorAll('[data-trainee]').forEach((b) => { b.onclick = () => traineeSheet(b.dataset.trainee); });
     const cs = $('#clientSearch');
