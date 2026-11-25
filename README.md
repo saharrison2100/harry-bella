@@ -54,4 +54,4 @@ keytool -genkey -v -keystore harrybella.jks -keyalg RSA -keysize 2048 -validity 
 
 ## Version
 
-1.5.1 - owner account setup with a name and optional email, named lock screen, and NYSC corrected.
+1.6.0 - sketch studio with croquis figures, fill tool, and tracing an existing design to recolour it.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0
+- Sketch studio: draw outfits on three croquis figures (front, gown, men's) or a blank canvas, with brush sizes, ten studio colours plus any colour, eraser, fill, undo and clear.
+- Fill tool colours a garment area in one tap, so a figure can be dressed in seconds.
+- Trace or recolour: open any saved design as a faded background and draw over it to make a variant.
+- Sketches save straight into the gallery with a category and an optional client, and the gallery has a Sketches filter.
+
 ## 1.5.1
 - Owner account setup now asks for a name before the PIN, with an optional email kept as a record on the phone.
 - The lock screen greets the owner by name and shows who owns the device under the PIN field.

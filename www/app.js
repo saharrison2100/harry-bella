@@ -134,7 +134,7 @@
 
   function render() {
     renderNav();
-    const v = { home: viewHome, jobs: viewJobs, clients: viewClients, money: viewMoney, more: viewMore }[route] || viewHome;
+    const v = { home: viewHome, jobs: viewJobs, clients: viewClients, money: viewMoney, more: viewMore, sketch: viewSketch }[route] || viewHome;
     $('#app').innerHTML = v();
     wire();
   }
@@ -223,6 +223,290 @@
         }).join('') : emptyBox('No payments yet', 'Record a deposit when a client pays.')) + '</div></div>';
   }
 
+  /* ---------- sketch studio: draw on a croquis, save to the gallery ---------- */
+  const CROQUIS = {
+    front: { label: 'Front figure', d: [
+      'M100 22a13 13 0 1 0 .1 0',                      // head
+      'M100 35v10',                                     // neck
+      'M74 52c8-5 18-7 26-7s18 2 26 7',                 // shoulders
+      'M74 52c-4 14-6 26-5 40',                         // left arm
+      'M126 52c4 14 6 26 5 40',
+      'M69 92c0 10 1 18 3 26',
+      'M131 92c0 10-1 18-3 26',
+      'M74 52c-2 16-1 30 2 42 2 9 2 16 0 24',           // left side to waist
+      'M126 52c2 16 1 30-2 42-2 9-2 16 0 24',
+      'M76 118c8-4 16-5 24-5s16 1 24 5',                // waist
+      'M74 120c-6 12-8 24-6 36 2 12 6 22 8 32',         // left hip and thigh
+      'M126 120c6 12 8 24 6 36-2 12-6 22-8 32',
+      'M76 188c-2 24-3 48-4 72-1 14 0 26 1 34',         // left leg
+      'M124 188c2 24 3 48 4 72 1 14 0 26-1 34',
+      'M78 294l-6 6M122 294l6 6',                       // feet
+      'M88 66c4 10 5 22 4 34',                          // bust shaping
+      'M112 66c-4 10-5 22-4 34',
+      'M84 140c6 8 26 8 32 0'                           // hip line
+    ] },
+    gown: { label: 'Gown pose', d: [
+      'M104 24a13 13 0 1 0 .1 0',
+      'M104 37v10',
+      'M80 54c8-5 16-7 24-7s16 2 24 7',
+      'M80 54c-8 10-16 18-24 22',                       // left arm out
+      'M80 54c2 16 3 28 2 38',
+      'M128 54c6 14 8 26 8 38',
+      'M56 76c-4 6-8 12-10 18',
+      'M80 54c-1 16 0 30 3 42 2 8 2 14 0 20',
+      'M128 54c1 16 0 30-3 42-2 8-2 14 0 20',
+      'M83 116c7-3 14-4 21-4s14 1 21 4',
+      'M78 120c-8 16-14 30-18 44',                      // skirt flare
+      'M130 120c8 16 14 30 18 44',
+      'M60 164c-10 34-16 70-20 106-2 12-2 22 0 28',     // skirt sides
+      'M148 164c10 34 16 70 20 106 2 12 2 22 0 28',
+      'M40 298c22 6 44 8 64 8s42-2 64-8',               // hem
+      'M44 298l-4 8M164 298l4 8'
+    ] },
+    suit: { label: 'Men\u2019s figure', d: [
+      'M100 20a14 14 0 1 0 .1 0',
+      'M100 34v11',
+      'M66 54c10-6 22-9 34-9s24 3 34 9',                // broad shoulders
+      'M66 54c-5 16-7 30-6 46',
+      'M134 54c5 16 7 30 6 46',
+      'M60 100c0 12 1 20 3 28',
+      'M140 100c0 12-1 20-3 28',
+      'M66 54c-2 18-1 34 3 48 3 10 3 18 1 26',          // torso
+      'M134 54c2 18 1 34-3 48-3 10-3 18-1 26',
+      'M70 128c10-5 20-7 30-7s20 2 30 7',               // waist
+      'M68 130c-4 14-5 28-3 40 2 12 5 22 6 32',
+      'M132 130c4 14 5 28 3 40-2 12-5 22-6 32',
+      'M71 202c-1 26-2 52-3 76-1 12 0 22 1 28',
+      'M129 202c1 26 2 52 3 76 1 12 0 22-1 28',
+      'M73 306l-7 5M127 306l7 5',
+      'M74 62c6 14 8 30 7 44',                          // jacket line
+      'M126 62c-6 14-8 30-7 44',
+      'M86 150h28'                                      // jacket hem
+    ] }
+  };
+  function croquisSVG(kind, w, h) {
+    if (kind === 'blank' || !CROQUIS[kind]) return '';
+    const paths = CROQUIS[kind].d.map((d) => '<path d="' + d + '"/>').join('');
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 320" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid meet">' +
+      '<g fill="none" stroke="#B9B2A4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + paths + '</g></svg>';
+  }
+
+  let sk = null; // { canvas, ctx, strokes, cur, color, size, tool, croquis, drawing, dpr }
+  let sketchBg = ''; // a saved design to trace over
+
+  function viewSketch() {
+    return '<div class="wrap"><div class="between"><div><h2>Sketch studio</h2><p class="sub">Draw the outfit, then save it to the gallery</p></div>' +
+      '<button class="btn sm ghost" data-act="back-gallery">Back</button></div>' +
+      '<div class="card"><div class="sk-wrap"><canvas id="skCanvas"></canvas></div>' +
+      '<div class="sk-row"><label class="sk-lab">Figure</label>' +
+        '<select id="skCroquis">' + (sketchBg ? '<option value="trace">The design you opened</option>' : '') +
+        Object.keys(CROQUIS).map((k) => '<option value="' + k + '">' + CROQUIS[k].label + '</option>').join('') +
+        '<option value="blank">Blank canvas</option></select></div>' +
+      '<div class="sk-swatches" id="skSwatches"></div>' +
+      '<div class="sk-row"><label class="sk-lab">Size</label><input type="range" id="skSize" min="1" max="18" value="4"></div>' +
+      '<div class="sk-row sk-tools"><button class="btn sm ghost" data-sk="eraser">Eraser</button>' +
+        '<button class="btn sm ghost" data-sk="fill">Fill</button>' +
+        '<button class="btn sm ghost" data-sk="undo">Undo</button>' +
+        '<button class="btn sm ghost" data-sk="clear">Clear</button></div>' +
+      '<button class="btn gold" style="margin-top:10px" data-sk="save">Save to gallery</button>' +
+      '<p class="sub" style="margin:8px 0 0">The drawing stays on this phone. AI enhancement of a sketch needs an image model key, which is not set up.</p>' +
+      '</div></div>';
+  }
+
+  function mountSketch() {
+    const cv = $('#skCanvas'); if (!cv) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const box = cv.parentElement.getBoundingClientRect();
+    const W = Math.round(box.width - 20), H = Math.round(W * 1.45);
+    cv.width = W * dpr; cv.height = H * dpr;
+    cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    sk = { canvas: cv, ctx, W, H, dpr, strokes: [], cur: null, color: '#122A48', size: 4, tool: 'brush', croquis: sketchBg ? 'trace' : 'front', drawing: false };
+    const sw = $('#skSwatches');
+    const cols = ['#122A48', '#A89060', '#8E2F3C', '#2F6B4F', '#B0632A', '#4A3B8C', '#1B7C8C', '#8A8A8A', '#000000', '#FFFFFF'];
+    sw.innerHTML = cols.map((c, i) => '<button class="sk-sw' + (i === 0 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>').join('') +
+      '<input type="color" id="skCustom" value="#122A48" title="Pick any colour">';
+    sw.querySelectorAll('.sk-sw').forEach((b) => {
+      b.onclick = () => {
+        sw.querySelectorAll('.sk-sw').forEach((x) => x.classList.remove('on'));
+        b.classList.add('on');
+        sk.color = b.dataset.c; sk.tool = 'brush'; paintToolBtns();
+      };
+    });
+    const custom = $('#skCustom');
+    if (custom) custom.oninput = () => { sk.color = custom.value; sw.querySelectorAll('.sk-sw').forEach((x) => x.classList.remove('on')); sk.tool = 'brush'; paintToolBtns(); };
+    $('#skCroquis').value = sk.croquis;
+    $('#skCroquis').onchange = (e) => { sk.croquis = e.target.value; redraw(); };
+    $('#skSize').oninput = (e) => { sk.size = Number(e.target.value); };
+    document.querySelectorAll('[data-sk]').forEach((b) => {
+      b.onclick = () => {
+        const a = b.dataset.sk;
+        if (a === 'undo') { sk.strokes.pop(); redraw(); }
+        if (a === 'clear') { sk.strokes = []; redraw(); }
+        if (a === 'eraser') { sk.tool = sk.tool === 'eraser' ? 'brush' : 'eraser'; paintToolBtns(); }
+        if (a === 'fill') { sk.tool = sk.tool === 'fill' ? 'brush' : 'fill'; paintToolBtns(); }
+        if (a === 'save') saveSketch();
+      };
+    });
+    redraw();
+    const pos = (e) => {
+      const r = cv.getBoundingClientRect();
+      const p = e.touches ? e.touches[0] : e;
+      return { x: p.clientX - r.left, y: p.clientY - r.top };
+    };
+    const start = (e) => {
+      e.preventDefault();
+      const p = pos(e);
+      if (sk.tool === 'fill') {
+        sk.strokes.push({ type: 'fill', x: p.x, y: p.y, color: sk.color });
+        redraw();
+        return;
+      }
+      sk.drawing = true;
+      sk.cur = { color: sk.color, size: sk.size, erase: sk.tool === 'eraser', pts: [p] };
+      sk.strokes.push(sk.cur);
+      redraw();
+    };
+    const move = (e) => {
+      if (!sk.drawing) return;
+      e.preventDefault();
+      sk.cur.pts.push(pos(e));
+      redraw();
+    };
+    const end = () => { sk.drawing = false; sk.cur = null; };
+    cv.addEventListener('pointerdown', start);
+    cv.addEventListener('pointermove', move);
+    cv.addEventListener('pointerup', end);
+    cv.addEventListener('pointerleave', end);
+    cv.addEventListener('pointercancel', end);
+    cv.style.touchAction = 'none';
+  }
+
+  function paintToolBtns() {
+    const e = document.querySelector('[data-sk="eraser"]');
+    const f = document.querySelector('[data-sk="fill"]');
+    if (e) e.classList.toggle('gold', !!(sk && sk.tool === 'eraser'));
+    if (f) f.classList.toggle('gold', !!(sk && sk.tool === 'fill'));
+  }
+
+  /* flood fill in device pixels */
+  function floodFill(dx, dy, hex) {
+    const cv = sk.canvas, ctx = sk.ctx;
+    const w = cv.width, h = cv.height;
+    if (dx < 0 || dy < 0 || dx >= w || dy >= h) return;
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    const at = (x, y) => (y * w + x) * 4;
+    const i0 = at(dx, dy);
+    const sr = d[i0], sg = d[i0 + 1], sb = d[i0 + 2], sa = d[i0 + 3];
+    const rgb = hex.replace('#', '');
+    const tr = parseInt(rgb.slice(0, 2), 16), tg = parseInt(rgb.slice(2, 4), 16), tb = parseInt(rgb.slice(4, 6), 16);
+    if (Math.abs(sr - tr) < 6 && Math.abs(sg - tg) < 6 && Math.abs(sb - tb) < 6 && sa > 250) return;
+    const tol = 42;
+    const match = (i) => Math.abs(d[i] - sr) <= tol && Math.abs(d[i + 1] - sg) <= tol && Math.abs(d[i + 2] - sb) <= tol && Math.abs(d[i + 3] - sa) <= tol;
+    const stack = [dx, dy];
+    const seen = new Uint8Array(w * h);
+    while (stack.length) {
+      const y = stack.pop(), x = stack.pop();
+      if (x < 0 || y < 0 || x >= w || y >= h) continue;
+      const p = y * w + x;
+      if (seen[p]) continue;
+      const i = p * 4;
+      if (!match(i)) continue;
+      seen[p] = 1;
+      d[i] = tr; d[i + 1] = tg; d[i + 2] = tb; d[i + 3] = 255;
+      stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function redraw() {
+    if (!sk) return;
+    const { ctx, W, H } = sk;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, sk.canvas.width, sk.canvas.height);
+    ctx.restore();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, W, H);
+    if (sk.croquis === 'trace' && sketchBg) {
+      const img = new Image();
+      img.onload = () => {
+        const r = Math.min(W / img.width, H / img.height);
+        const dw = img.width * r, dh = img.height * r;
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+        ctx.globalAlpha = 1;
+        paintStrokes();
+      };
+      img.src = sketchBg;
+    } else if (sk.croquis !== 'blank') {
+      const img = new Image();
+      const svg = croquisSVG(sk.croquis, W, H);
+      img.onload = () => { ctx.drawImage(img, 0, 0, W, H); paintStrokes(); };
+      img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+    } else {
+      paintStrokes();
+    }
+  }
+  function paintStrokes() {
+    const { ctx } = sk;
+    sk.strokes.forEach((st) => {
+      if (st.type === 'fill') { floodFill(Math.round(st.x * sk.dpr), Math.round(st.y * sk.dpr), st.color); return; }
+      ctx.save();
+      ctx.globalCompositeOperation = st.erase ? 'destination-out' : 'source-over';
+      ctx.strokeStyle = st.color;
+      ctx.lineWidth = st.size;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (st.pts.length === 1) {
+        ctx.beginPath();
+        ctx.arc(st.pts[0].x, st.pts[0].y, st.size / 2, 0, Math.PI * 2);
+        ctx.fillStyle = st.color;
+        ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(st.pts[0].x, st.pts[0].y);
+        for (let i = 1; i < st.pts.length; i++) ctx.lineTo(st.pts[i].x, st.pts[i].y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+  }
+
+  function saveSketch() {
+    if (!sk) return;
+    const cv = sk.canvas;
+    // flatten onto white so the JPEG has no transparency
+    const out = document.createElement('canvas');
+    const scale = Math.min(1, 760 / cv.width);
+    out.width = Math.round(cv.width * scale);
+    out.height = Math.round(cv.height * scale);
+    const o = out.getContext('2d');
+    o.fillStyle = '#FFFFFF'; o.fillRect(0, 0, out.width, out.height);
+    o.drawImage(cv, 0, 0, out.width, out.height);
+    const data = out.toDataURL('image/jpeg', 0.72);
+    openSheet('Save sketch',
+      '<label>Title</label><input id="sk-title" placeholder="e.g. Peplum set, sketch">' +
+      '<label>Category</label><select id="sk-cat">' + CATS.map((c) => '<option value="' + c.k + '"' + (galCat === c.k ? ' selected' : '') + '>' + esc(c.l) + '</option>').join('') + '</select>' +
+      '<label>Client (optional)</label><select id="sk-client"><option value="">No client yet</option>' +
+        db.clients.map((c) => '<option value="' + c.id + '">' + esc(c.name) + '</option>').join('') + '</select>' +
+      '<img src="' + data + '" alt="" style="width:100%;border-radius:12px;margin:12px 0;background:#fff">' +
+      '<button class="btn gold" data-sk2="save">Save to gallery</button>',
+      () => {
+        $('#sheetBody').querySelector('[data-sk2="save"]').onclick = () => {
+          const title = ($('#sk-title').value || '').trim() || 'Sketch ' + new Date().toLocaleDateString();
+          db.designs.unshift({
+            id: uid('dz'), title, cat: $('#sk-cat').value, prompt: 'Hand sketch on a croquis',
+            tags: 'sketch', source: 'sketch', clientId: $('#sk-client').value,
+            imageUrl: data, created: today()
+          });
+          save(); closeSheet(); go('designs'); toast('Sketch saved to the gallery');
+        };
+      });
+  }
+
   function viewMore() {
     const items = [
       ['designs', 'Designs', 'Concepts, references and AI drafts', db.designs.length],
@@ -299,11 +583,11 @@
 
   function viewDesigns() {
     const all = db.designs;
-    const counts = { all: all.length, studio: 0, client: 0, ai: 0 };
+    const counts = { all: all.length, studio: 0, client: 0, ai: 0, sketch: 0 };
     all.forEach((d) => { const k = d.source || 'studio'; if (counts[k] !== undefined) counts[k] += 1; });
     let list = galFilter === 'all' ? all : all.filter((d) => (d.source || 'studio') === galFilter);
     if (galCat !== 'all') list = list.filter((d) => (d.cat || '') === galCat);
-    const chips = [['all', 'All'], ['studio', 'Studio'], ['client', 'Client refs'], ['ai', 'AI drafts']]
+    const chips = [['all', 'All'], ['studio', 'Studio'], ['client', 'Client refs'], ['ai', 'AI drafts'], ['sketch', 'Sketches']]
       .map(([k, l]) => '<button class="chip ' + (galFilter === k ? 'on' : '') + '" data-galf="' + k + '">' + l + ' ' + counts[k] + '</button>').join('');
     const catChips = [['all', 'All categories']].concat(CATS.map((c) => [c.k, c.l]))
       .map(([k, l]) => {
@@ -317,6 +601,7 @@
       '<div class="chips">' + catChips + '</div>' +
       '<div class="row" style="margin-bottom:12px">' +
         '<button class="btn sm ghost" data-act="upload-design">Upload photo</button>' +
+        '<button class="btn sm ghost" data-act="open-sketch">Sketch studio</button>' +
         '<button class="btn sm ghost" data-act="ai-design">AI design</button>' +
         '<button class="btn sm ghost" data-act="load-library">Starter styles</button>' +
       '</div>' +
@@ -425,6 +710,7 @@
       (d.prompt ? '<p class="sub" style="margin:0 0 12px">' + esc(d.prompt) + '</p>' : '') +
       '<label>Category</label><select id="d-cat-edit">' + CATS.map((c) => '<option value="' + c.k + '"' + ((d.cat || '') === c.k ? ' selected' : '') + '>' + esc(c.l) + '</option>').join('') + '</select>' +
       '<div class="row" style="margin-bottom:12px"><button class="btn sm gold" data-guide="' + d.id + '">How to make it</button>' +
+      (d.imageUrl ? '<button class="btn sm ghost" data-trace="' + d.id + '">Trace or recolour</button>' : '') +
       '<button class="btn sm ghost" data-assign="' + d.id + '">Assign to client</button>' +
       '<button class="btn sm ghost" data-share-d="' + d.id + '">Share</button></div>' +
       '<div id="guideBox"></div>' +
@@ -438,6 +724,8 @@
           toast('Moved to ' + catLabel(d.cat));
         };
         $('#sheetBody').querySelector('[data-guide]').onclick = () => { box.innerHTML = guideHTML(d, c); };
+        const tb = $('#sheetBody').querySelector('[data-trace]');
+        if (tb) tb.onclick = () => { sketchBg = d.imageUrl; closeSheet(); go('sketch'); toast('Trace over it, or use Fill to recolour'); };
         $('#sheetBody').querySelector('[data-assign]').onclick = () => assignDesignSheet(d.id);
         $('#sheetBody').querySelector('[data-share-d]').onclick = () => {
           const msg = db.settings.business + ': ' + (d.title || 'a new design') + (d.prompt ? '. ' + d.prompt : '') + '. Let us know what you think and we will start on it.';
@@ -857,6 +1145,8 @@
       db.designs.unshift({ id: uid('dz'), title: 'Uploaded look', prompt: '', tags: '', source: 'studio', clientId: '', imageUrl: img, created: today() });
       save(); go('designs'); toast('Photo added to gallery');
     },
+    'open-sketch': () => { go('sketch'); },
+    'back-gallery': () => { sketchBg = ''; go('designs'); },
     'ai-design': () => newDesignSheet(),
     'load-library': () => {
       const n = loadStyleLibrary();
@@ -1032,6 +1322,7 @@
     document.querySelectorAll('[data-go]').forEach((b) => { b.onclick = () => go(b.dataset.go); });
     document.querySelectorAll('[data-design]').forEach((b) => { b.onclick = () => designSheet(b.dataset.design); });
     document.querySelectorAll('[data-galf]').forEach((b) => { b.onclick = () => { galFilter = b.dataset.galf; render(); }; });
+    if (route === 'sketch') mountSketch();
     document.querySelectorAll('[data-galcat]').forEach((b) => { b.onclick = () => { galCat = b.dataset.galcat; render(); }; });
     document.querySelectorAll('[data-filter]').forEach((b) => { b.onclick = () => { jobFilter = b.dataset.filter; render(); }; });
     document.querySelectorAll('[data-trainee]').forEach((b) => { b.onclick = () => traineeSheet(b.dataset.trainee); });
@@ -1044,7 +1335,7 @@
   const baseRender = render;
   render = function () {
     renderNav();
-    const fn = SUB[route] || { home: viewHome, jobs: viewJobs, clients: viewClients, money: viewMoney, more: viewMore }[route] || viewHome;
+    const fn = SUB[route] || { home: viewHome, jobs: viewJobs, clients: viewClients, money: viewMoney, more: viewMore, sketch: viewSketch }[route] || viewHome;
     $('#app').innerHTML = fn();
     wire();
   };
@@ -1239,7 +1530,7 @@
   };
 
   window.HB = {
-    db: () => db, save, render, role: () => role,
+    db: () => db, save, render, role: () => role, route: () => route,
     unlock: async (pin) => { const sc = ensureSec(); if (!sc.pinHash) return 'no-pin'; const h = await hashPin(pin, sc.salt); if (h === sc.pinHash) { role = 'owner'; hideLock(); render(); return 'owner'; } if (sc.staffHash && (await hashPin(pin, sc.staffSalt)) === sc.staffHash) { role = 'staff'; hideLock(); render(); return 'staff'; } return false; },
     lock: () => lockNow(),
     reset: () => { db = structuredClone(DEFAULTS); save(); role = null; showLock(); render(); }
