@@ -481,7 +481,7 @@
         '<div class="row" style="margin-top:9px"><button class="btn sm ghost" data-trainee="' + t.id + '">+ Trainee</button>' +
         '<button class="btn sm ghost" data-tlist="' + t.id + '">View list</button></div></div>';
     }).join('');
-    return '<div class="wrap"><div class="between"><div><h2>Training</h2><p class="sub">NTSC camp batches</p></div>' +
+    return '<div class="wrap"><div class="between"><div><h2>Training</h2><p class="sub">NYSC camp batches</p></div>' +
       '<button class="btn sm gold" data-act="new-training">+ Batch</button></div>' + (rows || '<div class="card">' + emptyBox('No batches yet', 'Add a corps member batch and track fees.') + '</div>') + '</div>';
   }
 
@@ -538,7 +538,11 @@
       '<button class="btn" style="margin-top:12px" data-act="save-settings">Save</button></div>' +
       '<div class="card"><b style="font-size:14px">Login and access</b>' +
       '<p class="sub" style="margin:6px 0 10px">Your owner PIN opens everything. A staff PIN opens a limited view: jobs, clients, designs and deliveries, with no money screens and no settings.</p>' +
+      field('Owner name', 'sec-name', ensureSec().ownerName, 'text') +
+      field('Owner email (optional)', 'sec-email', ensureSec().ownerEmail, 'email') +
+      '<p class="sub" style="margin:0 0 10px">The email is a record on this phone only. The app cannot send or reset anything by mail without a server behind it.</p>' +
       field('New owner PIN (4 to 6 digits)', 'sec-new', '', 'password') +
+      field('Staff name (optional)', 'sec-staffname', ensureSec().staffName, 'text') +
       field('Staff PIN (leave blank to keep)', 'sec-staff', '', 'password') +
       '<label class="chk" style="display:flex;gap:9px;align-items:center;font-size:13px;margin:4px 0 10px"><input type="checkbox" id="sec-clear-staff"> Remove the staff PIN</label>' +
       '<button class="btn" data-act="save-pins">Save PINs</button>' +
@@ -752,7 +756,7 @@
   function newTrainingSheet() {
     openSheet('New batch',
       '<label>Batch name</label><input id="t-batch" placeholder="e.g. 2026 Batch A">' +
-      '<label>Camp / location</label><input id="t-camp" value="NTSC Camp, Kubwa, Abuja">' +
+      '<label>Camp / location</label><input id="t-camp" value="NYSC Camp, Kubwa, Abuja">' +
       '<div class="mgrid"><div><label>Start</label><input id="t-start" type="date"></div>' +
       '<div><label>End</label><input id="t-end" type="date"></div></div>' +
       '<label>Fee per trainee (₦)</label><input id="t-fee" type="number" inputmode="numeric" placeholder="0">' +
@@ -922,7 +926,7 @@
     'demo': () => {
       const c1 = { id: uid('cl'), name: 'Adaeze Okafor', phone: '08031234567', address: 'Kubwa, Abuja', type: 'client', measurements: { Bust: '38', Waist: '31', Hips: '41', Shoulder: '15', Sleeve: '22', 'Top length': '26' }, created: today() };
       const c2 = { id: uid('cl'), name: 'Fatima Bello', phone: '08127654321', address: 'Gwarinpa, Abuja', type: 'client', measurements: { Bust: '36', Waist: '29', Hips: '39', Height: '64' }, created: today() };
-      const c3 = { id: uid('cl'), name: 'Grace Musa', phone: '09098887766', address: 'NTSC Camp, Kubwa', type: 'trainee', measurements: {}, created: today() };
+      const c3 = { id: uid('cl'), name: 'Grace Musa', phone: '09098887766', address: 'NYSC Camp, Kubwa', type: 'trainee', measurements: {}, created: today() };
       db.clients.push(c1, c2, c3);
       const d1 = new Date(); d1.setDate(d1.getDate() + 4);
       const d2 = new Date(); d2.setDate(d2.getDate() - 2);
@@ -931,7 +935,7 @@
       db.jobs.push(j1, j2);
       db.payments.push({ id: uid('pay'), jobId: j1.id, clientId: c1.id, amount: 50000, method: 'Bank transfer', date: today(), note: 'Deposit' });
       db.payments.push({ id: uid('pay'), jobId: j2.id, clientId: c2.id, amount: 45000, method: 'Cash', date: today(), note: 'Paid in full' });
-      const t1 = { id: uid('tr'), batch: '2026 Batch A', camp: 'NTSC Camp, Kubwa, Abuja', startDate: today(), endDate: '', fee: 25000 };
+      const t1 = { id: uid('tr'), batch: '2026 Batch A', camp: 'NYSC Camp, Kubwa, Abuja', startDate: today(), endDate: '', fee: 25000 };
       db.trainings.push(t1);
       db.trainees.push({ id: uid('te'), trainingId: t1.id, name: 'Grace Musa', phone: '09098887766', paid: 25000 });
       db.designs = db.designs.concat([
@@ -1073,7 +1077,18 @@
     return String(Date.now());
   }
 
-  function ensureSec() { if (!db.security) db.security = { pinHash: '', salt: '', staffHash: '', staffSalt: '', autolockMin: 5 }; return db.security; }
+  function ensureSec() {
+    if (!db.security) db.security = { pinHash: '', salt: '', staffHash: '', staffSalt: '', autolockMin: 5 };
+    const sc = db.security;
+    if (sc.ownerName === undefined) sc.ownerName = '';
+    if (sc.ownerEmail === undefined) sc.ownerEmail = '';
+    if (sc.staffName === undefined) sc.staffName = '';
+    return sc;
+  }
+  function whoName() {
+    const sc = ensureSec();
+    return role === 'staff' ? (sc.staffName || 'Staff') : (sc.ownerName || '');
+  }
 
   const L = () => $('#lock');
   function lockErr(msg) { const e = $('#lockErr'); if (e) e.textContent = msg || ''; }
@@ -1081,14 +1096,19 @@
   function showLock(mode) {
     const sc = ensureSec();
     const setup = !sc.pinHash;
-    $('#lockTitle').textContent = setup ? 'Welcome to Harry Bella' : 'Harry Bella';
-    $('#lockSub').textContent = setup ? 'Create your owner PIN. It keeps clients out of your books when they use the phone.' : 'Enter your PIN to open the studio';
+    const named = sc.ownerName ? 'Welcome back, ' + sc.ownerName : 'Harry Bella';
+    $('#lockTitle').textContent = setup ? 'Welcome to Harry Bella' : named;
+    $('#lockSub').textContent = setup ? 'Set up the owner account: your name, then a PIN.' : 'Enter your PIN to open the studio';
     $('#lockFields').innerHTML = setup
-      ? '<input id="pin1" type="password" inputmode="numeric" autocomplete="new-password" placeholder="New PIN (4 to 6 digits)" maxlength="6">' +
+      ? '<input id="lock-name" type="text" autocomplete="name" placeholder="Your name, e.g. Nkiru" maxlength="40">' +
+        '<input id="lock-email" type="email" autocomplete="email" inputmode="email" placeholder="Email (optional)" maxlength="60">' +
+        '<input id="pin1" type="password" inputmode="numeric" autocomplete="new-password" placeholder="New PIN (4 to 6 digits)" maxlength="6">' +
         '<input id="pin2" type="password" inputmode="numeric" autocomplete="new-password" placeholder="Repeat PIN" maxlength="6">'
       : '<input id="pin1" type="password" inputmode="numeric" autocomplete="current-password" placeholder="PIN" maxlength="6">';
-    $('#lockGo').textContent = setup ? 'Create PIN and open' : 'Unlock';
-    $('#lockFoot').textContent = setup ? 'Use Settings later to add a staff PIN for your apprentices.' : 'Staff PIN opens a limited view without money or settings.';
+    $('#lockGo').textContent = setup ? 'Create account and open' : 'Unlock';
+    $('#lockFoot').textContent = setup
+      ? 'The name shows on the lock screen. The email is only a record on this phone.'
+      : (sc.ownerName ? 'Owner: ' + sc.ownerName + (sc.ownerEmail ? ' · ' + sc.ownerEmail : '') + '. Staff PIN opens a limited view.' : 'Staff PIN opens a limited view without money or settings.');
     lockErr('');
     L().classList.add('on');
     setTimeout(() => { const p = $('#pin1'); if (p) p.focus(); }, 120);
@@ -1101,19 +1121,24 @@
     const p1 = ($('#pin1') || {}).value || '';
     if (!sc.pinHash) {
       const p2 = ($('#pin2') || {}).value || '';
+      const nm = (($('#lock-name') || {}).value || '').trim();
+      const em = (($('#lock-email') || {}).value || '').trim();
+      if (nm.length < 2) return lockErr('Enter your name first.');
+      if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return lockErr('That email does not look right.');
       if (!/^\d{4,6}$/.test(p1)) return lockErr('Use 4 to 6 digits.');
       if (p1 !== p2) return lockErr('The two PINs do not match.');
+      sc.ownerName = nm; sc.ownerEmail = em;
       sc.salt = newSalt();
       sc.pinHash = await hashPin(p1, sc.salt);
-      save(); role = 'owner'; enter(pendingDest); toast('PIN set. You are signed in as owner.');
+      save(); role = 'owner'; enter(pendingDest); toast('Welcome, ' + nm + '. You are signed in as owner.');
       return;
     }
     if (!/^\d{4,6}$/.test(p1)) return lockErr('Enter your PIN.');
     const h = await hashPin(p1, sc.salt);
-    if (h === sc.pinHash) { role = 'owner'; enter(pendingDest); return; }
+    if (h === sc.pinHash) { role = 'owner'; enter(pendingDest); if (sc.ownerName) toast('Welcome back, ' + sc.ownerName); return; }
     if (sc.staffHash && sc.staffSalt) {
       const hs = await hashPin(p1, sc.staffSalt);
-      if (hs === sc.staffHash) { role = 'staff'; enter(pendingDest || 'home'); return; }
+      if (hs === sc.staffHash) { role = 'staff'; enter(pendingDest || 'home'); toast('Welcome, ' + (sc.staffName || 'staff')); return; }
     }
     lockErr('Wrong PIN. Try again.');
     const f = $('#pin1'); if (f) { f.value = ''; f.focus(); }
@@ -1161,7 +1186,7 @@
       document.querySelectorAll("[data-go='settings']").forEach((b) => b.remove());
     }
     const lk = $('.lockbtn');
-    if (lk) lk.title = isStaff() ? 'Signed in as staff' : 'Lock';
+    if (lk) lk.title = 'Signed in as ' + (whoName() || (isStaff() ? 'staff' : 'owner')) + '. Tap to lock.';
   };
 
   /* auto lock after idle */
@@ -1200,6 +1225,12 @@
   A['save-pins'] = async () => {
     const np = ($('#sec-new') || {}).value || '';
     const sp = ($('#sec-staff') || {}).value || '';
+    const sc0 = ensureSec();
+    const nm = (($('#sec-name') || {}).value || '').trim();
+    const em = (($('#sec-email') || {}).value || '').trim();
+    const sn = (($('#sec-staffname') || {}).value || '').trim();
+    if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { toast('That email does not look right'); return; }
+    sc0.ownerName = nm; sc0.ownerEmail = em; sc0.staffName = sn; save();
     let ok = true;
     if (np) { ok = await setOwnerPin(np); if (!ok) { toast('Owner PIN must be 4 to 6 digits'); return; } }
     if (sp !== '') { const r = await setStaffPin(sp); if (!r) { toast('Staff PIN must be 4 to 6 digits'); return; } }

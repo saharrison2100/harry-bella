@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.1
+- Owner account setup now asks for a name before the PIN, with an optional email kept as a record on the phone.
+- The lock screen greets the owner by name and shows who owns the device under the PIN field.
+- Staff get a name too, so the app can say who is signed in.
+- Corrected NYSC everywhere (the earlier build said NTSC).
+
 ## 1.5.0
 - Six design categories: African attire, office and corporate, bridal and occasion, casual and everyday, men's wear, kids and family.
 - Category filters sit alongside the existing Studio, Client refs and AI drafts filters, and the two combine.

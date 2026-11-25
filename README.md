@@ -13,7 +13,7 @@ Android app (Capacitor + vanilla JS), built for Android 15, runs on Android 5.1 
 - **Jobs** - seven stages from consultation to delivered.
 - **Money** - deposits, balances, who has paid and who still owes.
 - **Deliveries** - pickups and drops, with rider notes.
-- **Training** - NTSC camp batches, trainee fees and payments.
+- **Training** - NYSC camp batches, trainee fees and payments.
 - **Payments** - bank transfer details print on receipts and WhatsApp payment messages.
 - **Welcome cover** - a branded splash cover on launch with the PIN login and shortcut buttons for Gallery, Clients, Jobs and Money. Every shortcut still requires the PIN.
 - **Owner login** - a PIN gate. The owner PIN opens everything; a staff PIN opens jobs, clients, designs and deliveries only, with no money screens and no settings.
@@ -54,4 +54,4 @@ keytool -genkey -v -keystore harrybella.jks -keyalg RSA -keysize 2048 -validity 
 
 ## Version
 
-1.5.0 - design categories for African attire, office wear, occasion, casual, men's and kids, plus a 29-style starter library.
+1.5.1 - owner account setup with a name and optional email, named lock screen, and NYSC corrected.
